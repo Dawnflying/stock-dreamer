@@ -12,9 +12,13 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 import KlineChart from '@/components/KlineChart';
+import GannChart from '@/components/GannChart';
+import StockNews from '@/components/StockNews';
+import AIAssistant from '@/components/AIAssistant';
 import { api } from '@/services/api';
 import { useStore } from '@/store/useStore';
 import type { Stock, KlineData, TechnicalIndicators } from '@/types';
+import { performGannAnalysis } from '@/utils/gannAnalysis';
 import clsx from 'clsx';
 
 export default function StockDetailPage() {
@@ -24,6 +28,7 @@ export default function StockDetailPage() {
   const [klineData, setKlineData] = useState<KlineData[]>([]);
   const [indicators, setIndicators] = useState<TechnicalIndicators | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'technical' | 'gann' | 'news' | 'ai'>('technical');
 
   const { isFavorite, addFavorite, removeFavorite, priceUpdates } = useStore();
   const isFav = code ? isFavorite(code) : false;
@@ -41,7 +46,7 @@ export default function StockDetailPage() {
       setLoading(true);
       const [stockData, klineResponse] = await Promise.all([
         api.getStock(code),
-        api.getKlineData(code, { count: 100 }),
+        api.getKlineData(code, { count: 200 }),
       ]);
 
       setStock(stockData);
@@ -84,6 +89,15 @@ export default function StockDetailPage() {
 
   const isRise = displayChangePercent > 0;
   const isFall = displayChangePercent < 0;
+
+  // 准备AI分析上下文
+  const gannAnalysis = performGannAnalysis(klineData, displayPrice);
+  const aiContext = {
+    stock,
+    klineData,
+    indicators,
+    gannAnalysis,
+  };
 
   return (
     <div className="min-h-screen">
@@ -208,13 +222,52 @@ export default function StockDetailPage() {
           </div>
         </motion.div>
 
-        {/* Kline Chart */}
+        {/* Analysis Tabs */}
+        <div className="flex space-x-2 overflow-x-auto pb-2">
+          {[
+            { key: 'technical', label: '技术分析' },
+            { key: 'gann', label: '江恩理论' },
+            { key: 'news', label: '相关资讯' },
+            { key: 'ai', label: 'AI助手' },
+          ].map((tab) => (
+            <motion.button
+              key={tab.key}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`px-6 py-3 rounded-xl font-medium whitespace-nowrap transition-all ${
+                activeTab === tab.key
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                  : 'glass-white text-gray-700 hover:bg-white/80'
+              }`}
+            >
+              {tab.label}
+            </motion.button>
+          ))}
+        </div>
+
+        {/* Analysis Content */}
         <motion.div
+          key={activeTab}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ duration: 0.3 }}
         >
-          <KlineChart data={klineData} indicators={indicators} />
+          {activeTab === 'technical' && (
+            <KlineChart data={klineData} indicators={indicators} />
+          )}
+
+          {activeTab === 'gann' && (
+            <GannChart data={klineData} currentPrice={displayPrice} />
+          )}
+
+          {activeTab === 'news' && code && (
+            <StockNews stockCode={code} />
+          )}
+
+          {activeTab === 'ai' && (
+            <AIAssistant context={aiContext} />
+          )}
         </motion.div>
 
         {/* Additional Info */}

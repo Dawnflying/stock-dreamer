@@ -3,6 +3,7 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { stocksData } from './data/stocks.js';
 import { generateKlineData, generateRealtimePrice, calculateTechnicalIndicators } from './utils/mockData.js';
+import { getStockNews } from './data/news.js';
 
 const app = express();
 const PORT = 3001;
@@ -130,6 +131,26 @@ app.get('/api/market/overview', (req, res) => {
       topLosers,
       topVolume,
     },
+  });
+});
+
+// 获取股票新闻
+app.get('/api/news/:code', (req, res) => {
+  const { code } = req.params;
+  const stock = stocksData.find(s => s.code === code);
+
+  if (!stock) {
+    return res.status(404).json({
+      code: 404,
+      message: '股票不存在',
+    });
+  }
+
+  const news = getStockNews(code);
+
+  res.json({
+    code: 0,
+    data: news,
   });
 });
 

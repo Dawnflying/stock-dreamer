@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Stock, KlineData, TechnicalIndicators, MarketOverview } from '@/types';
+import type { Stock, KlineData, TechnicalIndicators, MarketOverview, StockNews } from '@/types';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -34,6 +34,14 @@ export const api = {
   getMarketOverview: async () => {
     const response = await axios.get<{ code: number; data: MarketOverview }>(
       `${API_BASE}/market/overview`
+    );
+    return response.data.data;
+  },
+
+  // 获取股票新闻
+  getStockNews: async (code: string) => {
+    const response = await axios.get<{ code: number; data: StockNews[] }>(
+      `${API_BASE}/news/${code}`
     );
     return response.data.data;
   },

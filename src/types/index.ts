@@ -57,3 +57,22 @@ export interface PriceUpdate {
   change: number;
   changePercent: number;
 }
+
+export interface StockNews {
+  id: string;
+  title: string;
+  summary: string;
+  source: string;
+  publishTime: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  tags: string[];
+  url?: string;
+}
+
+export interface AIAnalysis {
+  question: string;
+  answer: string;
+  confidence: number;
+  relatedFactors: string[];
+  timestamp: string;
+}
