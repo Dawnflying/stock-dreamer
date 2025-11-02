@@ -14,7 +14,6 @@ export function generateAIAnswer(question: string, context: AnalysisContext): {
   confidence: number;
   relatedFactors: string[];
 } {
-  const { stock, klineData, indicators, gannAnalysis } = context;
   const questionLower = question.toLowerCase();
 
   // 趋势分析

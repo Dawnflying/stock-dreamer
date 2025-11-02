@@ -4,6 +4,8 @@ import { WebSocketServer } from 'ws';
 import { stocksData } from './data/stocks.js';
 import { generateKlineData, generateRealtimePrice, calculateTechnicalIndicators } from './utils/mockData.js';
 import { getStockNews } from './data/news.js';
+import aiService from './services/aiService.js';
+import searchService from './services/searchService.js';
 
 const app = express();
 const PORT = 3001;
@@ -152,6 +154,90 @@ app.get('/api/news/:code', (req, res) => {
     code: 0,
     data: news,
   });
+});
+
+// AI问答接口
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { message, context } = req.body;
+
+    if (!message) {
+      return res.status(400).json({
+        code: 400,
+        message: '消息不能为空',
+      });
+    }
+
+    // 调用AI服务
+    const result = await aiService.chat(message, context, 'analysis');
+
+    res.json({
+      code: 0,
+      data: {
+        answer: result.answer,
+        provider: result.provider,
+        model: result.model,
+        success: result.success,
+      },
+    });
+  } catch (error) {
+    console.error('AI chat error:', error);
+    res.status(500).json({
+      code: 500,
+      message: 'AI服务错误',
+      error: error.message,
+    });
+  }
+});
+
+// 网络搜索接口
+app.post('/api/search/stock', async (req, res) => {
+  try {
+    const { stockName, stockCode, query } = req.body;
+
+    if (!stockName || !stockCode) {
+      return res.status(400).json({
+        code: 400,
+        message: '股票名称和代码不能为空',
+      });
+    }
+
+    // 搜索股票相关信息
+    const searchResult = await searchService.searchStockInfo(
+      stockName,
+      stockCode,
+      query || ''
+    );
+
+    // 如果搜索成功，使用AI总结结果
+    let summary = '';
+    if (searchResult.success && searchResult.results.length > 0) {
+      const searchInfo = searchService.extractKeyInfo(searchResult.results);
+      const summaryResult = await aiService.chat(
+        `请总结以下搜索结果，提取关键信息并分析对${stockName}股价的可能影响：\n\n${searchInfo}`,
+        {},
+        'search'
+      );
+      summary = summaryResult.answer;
+    }
+
+    res.json({
+      code: 0,
+      data: {
+        query: searchResult.query,
+        results: searchResult.results,
+        summary: summary,
+        source: searchResult.source,
+      },
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({
+      code: 500,
+      message: '搜索服务错误',
+      error: error.message,
+    });
+  }
 });
 
 const server = app.listen(PORT, () => {

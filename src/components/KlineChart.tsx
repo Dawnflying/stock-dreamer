@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { KlineData, TechnicalIndicators } from '@/types';
 import { motion } from 'framer-motion';

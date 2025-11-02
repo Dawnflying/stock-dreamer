@@ -45,6 +45,40 @@ export const api = {
     );
     return response.data.data;
   },
+
+  // AI聊天对话
+  aiChat: async (message: string, context: any) => {
+    const response = await axios.post<{
+      code: number;
+      data: {
+        answer: string;
+        provider: string;
+        model: string;
+        success: boolean;
+      };
+    }>(`${API_BASE}/ai/chat`, { message, context });
+    return response.data.data;
+  },
+
+  // 股票信息搜索
+  searchStock: async (stockName: string, stockCode: string, query?: string) => {
+    const response = await axios.post<{
+      code: number;
+      data: {
+        query: string;
+        results: Array<{
+          title: string;
+          snippet: string;
+          url: string;
+          source: string;
+          publishTime: string;
+        }>;
+        summary: { answer: string };
+        source: string;
+      };
+    }>(`${API_BASE}/search/stock`, { stockName, stockCode, query });
+    return response.data.data;
+  },
 };
 
 // WebSocket连接

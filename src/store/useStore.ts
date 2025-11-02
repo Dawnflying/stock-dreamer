@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import type { Stock } from '@/types';
 
 interface StoreState {
   // 自选股列表

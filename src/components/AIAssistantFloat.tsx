@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Send, Sparkles, X, Minimize2, TrendingUp, Lightbulb, Shield, DollarSign, Info, Newspaper } from 'lucide-react';
+import { Send, Sparkles, X, Minimize2, TrendingUp, Lightbulb, Shield, DollarSign, Info, Newspaper, Search } from 'lucide-react';
 import type { AIAnalysis } from '@/types';
 import { generateAIAnswer, type AnalysisContext } from '@/utils/aiAnalysis';
+import { api } from '@/services/api';
 
 interface AIAssistantFloatProps {
   context: AnalysisContext;
@@ -36,18 +37,34 @@ export default function AIAssistantFloat({ context, currentTab }: AIAssistantFlo
   const [question, setQuestion] = useState('');
   const [analyses, setAnalyses] = useState<AIAnalysis[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchMode, setSearchMode] = useState(false);
 
   const contextQuestions = CONTEXT_QUESTIONS[currentTab] || CONTEXT_QUESTIONS.technical;
 
-  const handleAsk = (inputQuestion?: string) => {
+  const handleAsk = async (inputQuestion?: string) => {
     const q = inputQuestion || question;
     if (!q.trim()) return;
 
     setLoading(true);
 
-    setTimeout(() => {
-      const result = generateAIAnswer(q, context);
+    try {
+      // 调用真实的后端AI API
+      const result = await api.aiChat(q, context);
 
+      const newAnalysis: AIAnalysis = {
+        question: q,
+        answer: result.answer,
+        confidence: 0.9, // 可以从后端返回
+        relatedFactors: extractFactorsFromAnswer(result.answer),
+        timestamp: new Date().toISOString(),
+      };
+
+      setAnalyses(prev => [newAnalysis, ...prev]);
+      setQuestion('');
+    } catch (error) {
+      console.error('AI API调用失败，使用本地分析:', error);
+      // 降级到本地分析
+      const result = generateAIAnswer(q, context);
       const newAnalysis: AIAnalysis = {
         question: q,
         answer: result.answer,
@@ -55,11 +72,65 @@ export default function AIAssistantFloat({ context, currentTab }: AIAssistantFlo
         relatedFactors: result.relatedFactors,
         timestamp: new Date().toISOString(),
       };
+      setAnalyses(prev => [newAnalysis, ...prev]);
+      setQuestion('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 从AI回答中提取相关因子
+  const extractFactorsFromAnswer = (answer: string): string[] => {
+    const factors: string[] = [];
+    const keywords = ['MACD', 'RSI', 'KDJ', '均线', '成交量', '支撑位', '压力位', '江恩', '趋势', '背离'];
+    keywords.forEach(keyword => {
+      if (answer.includes(keyword)) {
+        factors.push(keyword);
+      }
+    });
+    return factors.slice(0, 5); // 最多返回5个因子
+  };
+
+  // 处理网络搜索
+  const handleSearch = async (inputQuery?: string) => {
+    const q = inputQuery || question;
+    if (!q.trim() || !context.stock) return;
+
+    setLoading(true);
+
+    try {
+      const result = await api.searchStock(
+        context.stock.name,
+        context.stock.code,
+        q
+      );
+
+      const newAnalysis: AIAnalysis = {
+        question: `🔍 ${q}`,
+        answer: result.summary.answer + '\n\n📰 搜索到 ' + result.results.length + ' 条相关资讯',
+        confidence: 0.85,
+        relatedFactors: result.results.slice(0, 3).map(r => r.source),
+        timestamp: new Date().toISOString(),
+      };
 
       setAnalyses(prev => [newAnalysis, ...prev]);
       setQuestion('');
+      setSearchMode(false);
+    } catch (error) {
+      console.error('搜索失败:', error);
+      const newAnalysis: AIAnalysis = {
+        question: `🔍 ${q}`,
+        answer: '抱歉，网络搜索暂时不可用。请稍后再试或直接提问。',
+        confidence: 0.5,
+        relatedFactors: [],
+        timestamp: new Date().toISOString(),
+      };
+      setAnalyses(prev => [newAnalysis, ...prev]);
+      setQuestion('');
+      setSearchMode(false);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const handleQuickQuestion = (q: string) => {
@@ -250,24 +321,46 @@ export default function AIAssistantFloat({ context, currentTab }: AIAssistantFlo
 
                 {/* Input */}
                 <div className="p-4 bg-white border-t border-gray-200">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setSearchMode(!searchMode)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        searchMode
+                          ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Search className="w-3 h-3 inline mr-1" />
+                      {searchMode ? '网络搜索模式' : '切换搜索'}
+                    </motion.button>
+                    {searchMode && (
+                      <span className="text-xs text-gray-500">将在网上搜索相关资讯</span>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-2">
                     <input
                       type="text"
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAsk()}
-                      placeholder={`问我关于${getTabLabel()}的问题...`}
+                      onKeyPress={(e) => e.key === 'Enter' && (searchMode ? handleSearch() : handleAsk())}
+                      placeholder={searchMode ? '搜索股票相关资讯...' : `问我关于${getTabLabel()}的问题...`}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
                       disabled={loading}
                     />
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => handleAsk()}
+                      onClick={() => searchMode ? handleSearch() : handleAsk()}
                       disabled={loading || !question.trim()}
-                      className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`p-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                        searchMode
+                          ? 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                          : 'bg-gradient-to-r from-purple-600 to-pink-600'
+                      }`}
                     >
-                      <Send className="w-5 h-5" />
+                      {searchMode ? <Search className="w-5 h-5" /> : <Send className="w-5 h-5" />}
                     </motion.button>
                   </div>
                 </div>

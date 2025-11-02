@@ -38,13 +38,17 @@
 
 ### 🤖 AI智能助手
 
+- **真实LLM对话** - 支持OpenAI、Claude、智谱、通义千问、DeepSeek等多种AI模型
 - **智能问答** - 基于当前股票数据的智能分析
+- **网络搜索** - 通过夸克搜索API获取最新股票资讯
 - **多维度分析** - 趋势、技术指标、江恩理论综合分析
 - **交易建议** - 基于多因子模型的操作建议
 - **风险评估** - 波动率分析和风险等级评估
 - **快捷提问** - 预设常见问题快速获取答案
+- **上下文感知** - 根据当前所在板块（技术/江恩/资讯）动态切换分析重点
 - **置信度显示** - 分析结果可信度评分
 - **关联因子** - 展示影响分析结果的关键因素
+- **悬浮球设计** - 右下角智能助手悬浮球，随时唤起对话
 
 ### 🎨 动感交互
 
@@ -94,6 +98,58 @@ npm run build
 npm run preview
 ```
 
+## 🔑 AI助手配置
+
+### 配置AI模型
+
+AI智能助手支持多种大语言模型，您可以选择任意一个进行配置：
+
+1. **编辑 `.env` 文件**
+
+项目根目录已包含 `.env` 文件模板，填入您的API密钥即可：
+
+```bash
+# 选择使用的AI提供商
+AI_PROVIDER=openai  # 可选：openai | anthropic | zhipu | qwen | deepseek
+
+# 填入对应提供商的API密钥
+OPENAI_API_KEY=your_api_key_here
+# 或
+ANTHROPIC_API_KEY=your_api_key_here
+# 或
+ZHIPU_API_KEY=your_api_key_here
+# ... 等等
+```
+
+2. **支持的AI提供商**
+
+| 提供商 | 模型 | 获取API Key |
+|--------|------|-------------|
+| OpenAI | gpt-4o-mini | https://platform.openai.com |
+| Anthropic | claude-3-5-sonnet | https://console.anthropic.com |
+| 智谱AI | glm-4-flash | https://open.bigmodel.cn |
+| 阿里通义千问 | qwen-turbo | https://dashscope.aliyuncs.com |
+| DeepSeek | deepseek-chat | https://platform.deepseek.com |
+
+3. **配置网络搜索（可选）**
+
+如果需要使用网络搜索功能获取最新股票资讯：
+
+```bash
+QUARK_API_KEY=your_quark_api_key_here
+```
+
+**注意：** 如果未配置API密钥，AI助手将自动降级到本地分析模式，仍可提供基本的技术分析和建议。
+
+### AI助手使用指南
+
+1. **打开AI助手**：点击右下角紫色悬浮球
+2. **选择模式**：
+   - 默认：根据当前板块智能问答（技术分析/江恩理论/资讯解读）
+   - 网络搜索：点击"切换搜索"按钮，搜索最新股票相关资讯
+3. **快捷提问**：点击预设问题快速获取分析
+4. **自定义提问**：在输入框输入问题，按Enter或点击发送
+
 ## 📁 项目结构
 
 ```
@@ -119,11 +175,19 @@ stock-dreamer/
 │   ├── main.tsx             # 应用入口
 │   └── index.css            # 全局样式
 ├── server/                   # 后端服务
+│   ├── config/              # 配置文件
+│   │   └── ai.js            # AI模型配置
+│   ├── services/            # 服务层
+│   │   ├── aiService.js     # AI服务（支持多种LLM）
+│   │   └── searchService.js # 搜索服务（夸克搜索）
 │   ├── data/                # 数据文件
-│   │   └── stocks.js        # 股票数据
+│   │   ├── stocks.js        # 股票数据
+│   │   └── news.js          # 新闻数据
 │   ├── utils/               # 工具函数
 │   │   └── mockData.js      # 数据生成工具
 │   └── index.js             # Express服务器
+├── .env                     # 环境变量配置
+├── .env.example             # 环境变量模板
 ├── index.html               # HTML入口
 ├── package.json             # 项目配置
 ├── vite.config.ts           # Vite配置
@@ -261,6 +325,17 @@ GET /api/kline/:code         # 获取K线数据
   - count: 数据条数
 
 GET /api/market/overview     # 获取市场概况
+
+GET /api/news/:code          # 获取股票新闻
+  返回：新闻列表（含情绪分析和标签）
+
+POST /api/ai/chat            # AI智能问答
+  Body: { message: string, context: object }
+  返回：{ answer: string, provider: string, model: string, success: boolean }
+
+POST /api/search/stock       # 股票网络搜索
+  Body: { stockName: string, stockCode: string, query?: string }
+  返回：{ query: string, results: array, summary: object, source: string }
 ```
 
 ### WebSocket
