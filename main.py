@@ -14,7 +14,8 @@ def fetch_and_store(
     start_date=None,
     end_date=None,
     period='1mo',
-    update_existing=True
+    update_existing=True,
+    delay=3
 ):
     """
     Fetch stock data and store in database
@@ -25,6 +26,7 @@ def fetch_and_store(
         end_date: End date (YYYY-MM-DD)
         period: Time period if dates not specified
         update_existing: Whether to update existing records
+        delay: Delay between fetching different stocks (seconds)
     """
     print("=" * 60)
     print("Stock Data Fetcher")
@@ -45,7 +47,7 @@ def fetch_and_store(
     db_manager.create_tables()
 
     # Initialize fetcher and storage
-    fetcher = StockDataFetcher()
+    fetcher = StockDataFetcher(delay_between_requests=2)
     storage = StockDataStorage(db_manager)
 
     # Fetch data
@@ -54,12 +56,14 @@ def fetch_and_store(
         print(f"Date range: {start_date} to {end_date}")
     else:
         print(f"Period: {period}")
+    print(f"Delay between stocks: {delay}s")
 
     data = fetcher.fetch_multiple_stocks(
         symbols=symbols,
         start_date=start_date,
         end_date=end_date,
-        period=period
+        period=period,
+        delay_between_stocks=delay
     )
 
     # Store data
@@ -122,6 +126,8 @@ def main():
     fetch_parser.add_argument('--end', help='End date (YYYY-MM-DD)')
     fetch_parser.add_argument('--period', default='1mo',
                             help='Time period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, max)')
+    fetch_parser.add_argument('--delay', type=int, default=3,
+                            help='Delay between fetching different stocks in seconds (default: 3)')
     fetch_parser.add_argument('--no-update', action='store_true',
                             help='Skip updating existing records')
 
@@ -140,7 +146,8 @@ def main():
             start_date=args.start,
             end_date=args.end,
             period=args.period,
-            update_existing=not args.no_update
+            update_existing=not args.no_update,
+            delay=args.delay
         )
     elif args.command == 'query':
         query_data(
